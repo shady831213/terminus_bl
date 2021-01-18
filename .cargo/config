@@ -1,0 +1,5 @@
+[build]
+rustflags = [
+    "-C", "link-arg=-Tlinker.ld",
+    "-C", "link-arg=-Thtif.ld",
+]
