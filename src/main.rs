@@ -5,8 +5,6 @@
 #![feature(alloc_error_handler)]
 
 mod hal;
-mod htif;
-mod io_access;
 mod sys;
 
 use hal::{HTIFConsole, HTIFPowerDown};
