@@ -2,7 +2,7 @@ OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 BASE_ADDRESS = 0x80000000;
-
+KERNAL_ENTRY = 0x80200000;
 PROVIDE(_stack_size = 4K);
 PROVIDE(_heap_size = 16K);
 
@@ -62,8 +62,15 @@ SECTIONS
         _eheap = .;
     }
 
-    PROVIDE(end = .);
+    . = KERNAL_ENTRY;
+    .payload : {
+		_payload_start = .;
+		*(.payload)
+		. = ALIGN(8);
+		_payload_end = .;
+	}
 
+    PROVIDE(end = .);
     /DISCARD/ : {
         *(.eh_frame .eh_frame_hdr);
     }

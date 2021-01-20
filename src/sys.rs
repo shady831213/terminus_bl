@@ -70,7 +70,7 @@ pub(crate) fn _print_str(s: &str) {
 macro_rules! print {
     ($fmt:expr) => ($crate::sys::_print_str($fmt));
     ($fmt:expr, $($arg:tt)*) => ({
-        $crate::sys::_print(format_args!($fmt, $($arg)*));
+        $crate::sys::_print(core::format_args!($fmt, $($arg)*));
     });
 }
 
@@ -80,7 +80,7 @@ macro_rules! println {
         $crate::sys::_print_str($fmt);
         $crate::sys::_print_str("\n");
     });
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr, $($arg:tt)*) => (print!(core::concat!($fmt, "\n"), $($arg)*));
 }
 
 //only use in boot loader internally
@@ -141,6 +141,31 @@ impl ClintTimer {
 impl Timer for ClintTimer {
     fn set_timer(&mut self, time_value: u64) {
         let this_mhartid = riscv::register::mhartid::read();
+        println!("set timer!");
         CLINT.set_timer(this_mhartid, time_value);
+        unsafe {
+            use riscv::register::{mie, mip};
+            mip::clear_stimer();
+            mie::set_mtimer();
+        }
+    }
+}
+
+const PMP_R: usize = 0x01;
+const PMP_W: usize = 0x02;
+const PMP_X: usize = 0x04;
+const PMP_A: usize = 0x18;
+const PMP_L: usize = 0x80;
+
+const PMP_TOR: usize = 0x08;
+const PMP_NA4: usize = 0x10;
+const PMP_NAPOT: usize = 0x18;
+
+pub fn init_pmp() {
+    //enable all pmp region
+    unsafe {
+        use riscv::register::{pmpaddr0, pmpcfg0};
+        pmpaddr0::write(usize::MAX);
+        pmpcfg0::write(PMP_NAPOT | PMP_R | PMP_W | PMP_X)
     }
 }

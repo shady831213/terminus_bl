@@ -15,5 +15,8 @@ lazy_static = { version = "1", features = ["spin_no_std"] }
 riscv = { git = "https://github.com/rust-embedded/riscv", features = ["inline-asm"] }
 nb = "1"
 
+[build-dependencies]
+shellexpand = "2.1.0"
+
 [features]
 panic-full = []

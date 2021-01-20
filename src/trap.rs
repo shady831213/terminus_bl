@@ -27,9 +27,6 @@ pub fn delege_trap() {
         medeleg::set_instruction_page_fault();
         medeleg::set_load_page_fault();
         medeleg::set_store_page_fault();
-        medeleg::set_instruction_fault();
-        medeleg::set_load_fault();
-        medeleg::set_store_fault();
         mie::set_mext();
         mie::set_msoft();
     }
@@ -76,14 +73,14 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
         }
         Trap::Interrupt(Interrupt::MachineSoft) => {
             unsafe {
-                mip::set_ssoft();
                 mie::clear_msoft();
+                mip::set_ssoft();
             }
         }
         Trap::Interrupt(Interrupt::MachineTimer) => {
             unsafe {
-                mip::set_stimer();
                 mie::clear_mtimer();
+                mip::set_stimer();
             }
         }
         Trap::Exception(Exception::IllegalInstruction) => {
