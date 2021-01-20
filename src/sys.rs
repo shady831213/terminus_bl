@@ -113,6 +113,7 @@ lazy_static::lazy_static! {
 }
 
 use rustsbi::{HartMask, Ipi, Timer};
+
 pub struct ClintIpi;
 
 impl Ipi for ClintIpi {
@@ -130,6 +131,13 @@ impl Ipi for ClintIpi {
 }
 
 pub struct ClintTimer;
+
+impl ClintTimer {
+    pub fn get_time(&self) -> u64 {
+        CLINT.get_mtime()
+    }
+}
+
 impl Timer for ClintTimer {
     fn set_timer(&mut self, time_value: u64) {
         let this_mhartid = riscv::register::mhartid::read();

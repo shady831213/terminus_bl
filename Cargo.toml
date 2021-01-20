@@ -12,7 +12,7 @@ spin = "0.7"
 linked_list_allocator = "0.8"
 embedded-hal = "1.0.0-alpha.1"
 lazy_static = { version = "1", features = ["spin_no_std"] }
-riscv = "0.6"
+riscv = { git = "https://github.com/rust-embedded/riscv", features = ["inline-asm"] }
 nb = "1"
 
 [features]
