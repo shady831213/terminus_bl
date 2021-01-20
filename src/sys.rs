@@ -7,7 +7,9 @@ use core::panic::PanicInfo;
 use linked_list_allocator::LockedHeap;
 use spin::Mutex;
 
-use crate::hal::{HTIFConsole, HTIFPowerDown};
+use crate::hal::{Clint, HTIFConsole, HTIFPowerDown};
+
+pub const CLINT_BASE: usize = 0x02000000;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -104,4 +106,33 @@ fn panic(info: &PanicInfo) -> ! {
 fn panic(_info: &PanicInfo) -> ! {
     println!("panic!");
     exit(1);
+}
+
+lazy_static::lazy_static! {
+    static ref  CLINT: Clint = Clint::new(CLINT_BASE);
+}
+
+use rustsbi::{HartMask, Ipi, Timer};
+pub struct ClintIpi;
+
+impl Ipi for ClintIpi {
+    fn max_hart_id(&self) -> usize {
+        0
+    }
+
+    fn send_ipi_many(&mut self, hart_mask: HartMask) {
+        for i in 0..=self.max_hart_id() {
+            if hart_mask.has_bit(i) {
+                CLINT.send_soft(i);
+            }
+        }
+    }
+}
+
+pub struct ClintTimer;
+impl Timer for ClintTimer {
+    fn set_timer(&mut self, time_value: u64) {
+        let this_mhartid = riscv::register::mhartid::read();
+        CLINT.set_timer(this_mhartid, time_value);
+    }
 }
