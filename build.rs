@@ -9,7 +9,7 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let payload_path = option_env!("PAYLOAD_PATH");
     println!("{:?}", payload_path);
-    // Put the linker script somewhere the linker can find it
+    //Fix me: Need strip payload
     let payload_head = ".section .payload, \"ax\"
     .align 4
 	.globl payload_bin
