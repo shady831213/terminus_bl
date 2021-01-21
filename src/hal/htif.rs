@@ -16,14 +16,14 @@ static mut HTIF_TO_HOST: HtifToHost = HtifToHost {
 
 fn htif_write32(cmd: u32, data: u32) {
     unsafe {
-        io_write32(&mut HTIF_TO_HOST.to_host_cmd, 0x100 << 16);
-        io_write32(&mut HTIF_TO_HOST.to_host_cmd, cmd);
-        io_write32(&mut HTIF_TO_HOST.to_host_data, data);
+        io_write32(&mut HTIF_TO_HOST.to_host_cmd as *mut u32, 0x100 << 16);
+        io_write32(&mut HTIF_TO_HOST.to_host_cmd as *mut u32, cmd);
+        io_write32(&mut HTIF_TO_HOST.to_host_data as *mut u32, data);
     }
 }
 
 fn htif_wait32() -> nb::Result<(), Infallible> {
-    let busy = unsafe { io_read32(&mut HTIF_TO_HOST.to_host_cmd) != 0 };
+    let busy = unsafe { io_read32(&HTIF_TO_HOST.to_host_cmd as *const u32) != 0 };
     if !busy {
         Ok(())
     } else {
@@ -55,6 +55,7 @@ impl Write<u8> for HTIFConsole {
 }
 
 pub struct HTIFPowerDown;
+
 impl rustsbi::Reset for HTIFPowerDown {
     fn system_reset(&self, _reset_type: usize, reset_reason: usize) -> rustsbi::SbiRet {
         htif_write32(0, (reset_reason as u32) << 16 | 1);

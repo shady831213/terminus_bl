@@ -77,8 +77,13 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
                 mip::set_ssoft();
             }
         }
+        Trap::Interrupt(Interrupt::MachineExternal) => {
+            unsafe {
+                mie::clear_mext();
+                mip::set_sext();
+            }
+        }
         Trap::Interrupt(Interrupt::MachineTimer) => {
-            crate ::println!("get timer interrupt!");
             unsafe {
                 mie::clear_mtimer();
                 mip::set_stimer();

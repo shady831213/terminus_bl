@@ -13,21 +13,21 @@ impl Clint {
     }
 
     pub fn get_mtime(&self) -> u64 {
-        io_read64(&((self.base + MTIME_OFF) as u64))
+        io_read64((self.base + MTIME_OFF) as *const u64)
     }
 
     pub fn set_timer(&self, hart_id: usize, instant: u64) {
         io_write64(
-            &mut ((self.base + TIMER_OFF + (hart_id << 3)) as u64),
+            (self.base + TIMER_OFF + (hart_id << 3)) as *mut u64,
             instant,
         )
     }
 
     pub fn send_soft(&self, hart_id: usize) {
-        io_write32(&mut ((self.base + (hart_id << 2)) as u32), 1)
+        io_write32((self.base + (hart_id << 2)) as *mut u32, 1)
     }
 
     pub fn clear_soft(&self, hart_id: usize) {
-        io_write32(&mut ((self.base + (hart_id << 2)) as u32), 0)
+        io_write32((self.base + (hart_id << 2)) as *mut u32, 0)
     }
 }
