@@ -39,6 +39,38 @@ fn init() {
     delege_trap();
 }
 
+fn rustsbi_info() {
+    println!("[rustsbi] RustSBI version {}", rustsbi::VERSION);
+    println!("{}", rustsbi::LOGO);
+}
+
+fn platform_info(kernal_entry: usize) {
+    use riscv::register::{
+        medeleg, mideleg,
+        misa::{self, MXL},
+    };
+    println!(include_str!("logo.txt"));
+    println!("Platform: Terminus (Version {})", env!("CARGO_PKG_VERSION"));
+    let isa = misa::read();
+    if let Some(isa) = isa {
+        let mxl_str = match isa.mxl() {
+            MXL::XLEN32 => "RV32",
+            MXL::XLEN64 => "RV64",
+            MXL::XLEN128 => "RV128",
+        };
+        print!("[rustsbi] misa: {}", mxl_str);
+        for ext in 'A'..='Z' {
+            if isa.has_extension(ext) {
+                print!("{}", ext);
+            }
+        }
+        println!("");
+    }
+    println!("mideleg: {:#x}", mideleg::read().bits());
+    println!("medeleg: {:#x}", medeleg::read().bits());
+    println!("Kernel entry: {:x}", kernal_entry);
+}
+
 #[export_name = "main"]
 fn main(_hartid: usize, dtb_pa: usize) -> ! {
     use riscv::register::{
@@ -46,23 +78,15 @@ fn main(_hartid: usize, dtb_pa: usize) -> ! {
         mstatus::{self, MPP},
     };
     init();
-    println!(include_str!("logo.txt"));
-    // exit(0);
     extern "C" {
         static payload_bin: usize;
     }
     let payload_start = unsafe { &payload_bin } as *const _ as usize;
+    rustsbi_info();
+    platform_info(payload_start);
     unsafe {
         mepc::write(payload_start);
         mstatus::set_mpp(MPP::Supervisor);
         rustsbi::enter_privileged(mhartid::read(), dtb_pa)
     }
-    // unsafe {
-    //     asm!(
-    //         "
-    // j payload_bin
-    // ",
-    //         options(noreturn)
-    //     )
-    // }
 }
