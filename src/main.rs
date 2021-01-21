@@ -13,7 +13,7 @@ mod trap;
 use crate::sys::init_pmp;
 use crate::trap::delege_trap;
 use hal::{HTIFConsole, HTIFPowerDown};
-use sys::{exit, init_heap, ClintIpi, ClintTimer};
+use sys::{init_heap, ClintIpi, ClintTimer};
 use trap::init_trap;
 
 global_asm!(include_str!("crt.S"));

@@ -162,9 +162,66 @@ const PMP_NAPOT: usize = 0x18;
 
 pub fn init_pmp() {
     //enable all pmp region
-    unsafe {
-        use riscv::register::{pmpaddr0, pmpcfg0};
-        pmpaddr0::write(usize::MAX);
-        pmpcfg0::write(PMP_NAPOT | PMP_R | PMP_W | PMP_X)
+    use riscv::register::{pmpaddr0, pmpcfg0};
+    pmpaddr0::write(usize::MAX);
+    pmpcfg0::write(PMP_NAPOT | PMP_R | PMP_W | PMP_X)
+}
+
+#[inline]
+pub unsafe fn get_insn(vaddr: usize) -> u32 {
+    #[cfg(target_pointer_width = "64")]
+    macro_rules! LWU_STR {
+        () => {
+            "lwu"
+        };
     }
+    #[cfg(target_pointer_width = "32")]
+    macro_rules! LWU_STR {
+        () => {
+            "lw"
+        };
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    macro_rules! XLEN_MINUS_16 {
+        () => {
+            "48"
+        };
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    macro_rules! XLEN_MINUS_16 {
+        () => {
+            "16"
+        };
+    }
+
+    let mut ans: u32;
+    llvm_asm!(concat!("
+                    li      t0, (1 << 17)
+                    li      t3, 3
+                    and     t2, $1, 2
+                    csrrs   t0, mstatus, t0
+                    bnez    t2, 1f
+                    ", LWU_STR!(), " t1, 0($1)
+                    and t2, t1, 3
+                    beq t2, t3, 2f
+                    sll t1, t1, ",XLEN_MINUS_16!(),"
+                    srl t1, t1, ",XLEN_MINUS_16!(),"
+                    j 2f
+                    1:
+                    lhu t1, 0($1)
+                    and t2, t1, 3
+                    bne t2, t3, 2f
+                    lhu t2, 2($1)
+                    sll t2, t2, 16
+                    add t1, t1, t2
+                    2:
+                    csrw    mstatus, t0
+                    mv      $0, t1
+                ")
+                    :"=r"(ans) 
+                    :"r"(vaddr)
+                    :"t0", "t1", "t2", "t3");
+    ans
 }

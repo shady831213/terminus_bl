@@ -6,16 +6,12 @@ global_asm!(include_str!("rv64.S"));
 
 global_asm!(include_str!("trap.S"));
 pub fn init_trap() {
-    use riscv::register::{
-        mtvec::{self, TrapMode},
-        stvec,
-    };
+    use riscv::register::mtvec::{self, TrapMode};
     extern "C" {
         fn _start_trap();
     }
     unsafe {
         mtvec::write(_start_trap as usize, TrapMode::Direct);
-        stvec::write(_start_trap as usize, TrapMode::Direct);
     }
 }
 
@@ -61,7 +57,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
     use crate::sys::ClintTimer;
     use riscv::register::{
         mcause::{self, Exception, Interrupt, Trap},
-        mepc, mie, mip, mscratch, mstatus, mtval,
+        mepc, mie, mip, mstatus, mtval,
     };
     let cause = mcause::read().cause();
     match cause {
@@ -82,6 +78,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
             }
         }
         Trap::Interrupt(Interrupt::MachineTimer) => {
+            crate ::println!("get timer interrupt!");
             unsafe {
                 mie::clear_mtimer();
                 mip::set_stimer();
@@ -89,7 +86,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             let vaddr = mepc::read();
-            let ins = unsafe { get_vaddr_u32(vaddr) };
+            let ins = unsafe { crate::sys::get_insn(vaddr) };
             if ins & 0xFFFFF07F == 0xC0102073 {
                 // rdtime
                 let rd = ((ins >> 7) & 0b1_1111) as u8;
@@ -140,64 +137,4 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
             trap_frame
         ),
     }
-}
-
-#[cfg(target_pointer_width = "64")]
-macro_rules! LWU_STR {
-    () => {
-        "lwu"
-    };
-}
-
-#[cfg(target_pointer_width = "32")]
-macro_rules! LWU_STR {
-    () => {
-        "lw"
-    };
-}
-
-#[cfg(target_pointer_width = "64")]
-macro_rules! XLEN_MINUS_16 {
-    () => {
-        "48"
-    };
-}
-
-#[cfg(target_pointer_width = "32")]
-macro_rules! XLEN_MINUS_16 {
-    () => {
-        "16"
-    };
-}
-
-#[inline]
-unsafe fn get_vaddr_u32(vaddr: usize) -> u32 {
-    let mut ans: u32;
-    llvm_asm!(concat!("
-                    li      t0, (1 << 17)
-                    li      t3, 3
-                    and     t2, $1, 2
-                    csrrs   t0, mstatus, t0
-                    bnez    t2, 1f
-                    ", LWU_STR!(), " t1, 0($1)
-                    and t2, t1, 3
-                    beq t2, t3, 2f
-                    sll t1, t1, ",XLEN_MINUS_16!(),"
-                    srl t1, t1, ",XLEN_MINUS_16!(),"
-                    j 2f
-                    1:
-                    lhu t1, 0($1)
-                    and t2, t1, 3
-                    bne t2, t3, 2f
-                    lhu t2, 2($1)
-                    sll t2, t2, 16
-                    add t1, t1, t2
-                    2:
-                    csrw    mstatus, t0
-                    mv      $0, t1
-                ")
-                    :"=r"(ans) 
-                    :"r"(vaddr)
-                    :"t0", "t1", "t2", "t3");
-    ans
 }
