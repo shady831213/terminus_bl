@@ -50,6 +50,33 @@ struct TrapFrame {
     a5: usize,
     a6: usize,
     a7: usize,
+    s0: usize,
+    s1: usize,
+}
+
+impl TrapFrame {
+    fn update(&mut self, dst: u8, value: usize) {
+        match dst {
+            8 => self.s0 = value,
+            9 => self.s1 = value,
+            10 => self.a0 = value,
+            11 => self.a1 = value,
+            12 => self.a2 = value,
+            13 => self.a3 = value,
+            14 => self.a4 = value,
+            15 => self.a5 = value,
+            16 => self.a6 = value,
+            17 => self.a7 = value,
+            5 => self.t0 = value,
+            6 => self.t1 = value,
+            7 => self.t2 = value,
+            28 => self.t3 = value,
+            29 => self.t4 = value,
+            30 => self.t5 = value,
+            31 => self.t6 = value,
+            _ => panic!("invalid target{}", dst),
+        }
+    }
 }
 
 #[export_name = "_start_trap_rust"]
@@ -89,6 +116,10 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
                 mip::set_stimer();
             }
         }
+        // Trap::Exception(Exception::LoadMisaligned) => {
+        //     let vaddr = mepc::read();
+        //     let ins = unsafe { crate::sys::get_insn(vaddr) };
+        // }
         Trap::Exception(Exception::IllegalInstruction) => {
             let vaddr = mepc::read();
             let ins = unsafe { crate::sys::get_insn(vaddr) };
@@ -96,24 +127,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
                 // rdtime
                 let rd = ((ins >> 7) & 0b1_1111) as u8;
                 let time_usize = ClintTimer.get_time() as usize;
-                match rd {
-                    10 => trap_frame.a0 = time_usize,
-                    11 => trap_frame.a1 = time_usize,
-                    12 => trap_frame.a2 = time_usize,
-                    13 => trap_frame.a3 = time_usize,
-                    14 => trap_frame.a4 = time_usize,
-                    15 => trap_frame.a5 = time_usize,
-                    16 => trap_frame.a6 = time_usize,
-                    17 => trap_frame.a7 = time_usize,
-                    5 => trap_frame.t0 = time_usize,
-                    6 => trap_frame.t1 = time_usize,
-                    7 => trap_frame.t2 = time_usize,
-                    28 => trap_frame.t3 = time_usize,
-                    29 => trap_frame.t4 = time_usize,
-                    30 => trap_frame.t5 = time_usize,
-                    31 => trap_frame.t6 = time_usize,
-                    _ => panic!("invalid target"),
-                }
+                trap_frame.update(rd, time_usize);
                 mepc::write(mepc::read().wrapping_add(4));
             } else {
                 #[cfg(target_pointer_width = "64")]

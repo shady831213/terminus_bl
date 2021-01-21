@@ -8,7 +8,7 @@ _start_trap:
     /* from M level, load sp */
     csrrw   sp, mscratch, zero
 1:
-    addi    sp, sp, -16 * REGBYTES
+    addi    sp, sp, -18 * REGBYTES
     STORE   ra, 0
     STORE   t0, 1
     STORE   t1, 2
@@ -25,6 +25,8 @@ _start_trap:
     STORE   a5, 13
     STORE   a6, 14
     STORE   a7, 15
+    STORE   s0, 17
+    STORE   s1, 18
     mv      a0, sp
     call    _start_trap_rust
     LOAD    ra, 0
@@ -43,6 +45,8 @@ _start_trap:
     LOAD    a5, 13
     LOAD    a6, 14
     LOAD    a7, 15
-    addi    sp, sp, 16 * REGBYTES
+    LOAD    s0, 17
+    LOAD    s1, 18
+    addi    sp, sp, 18 * REGBYTES
     csrrw   sp, mscratch, sp
     mret
