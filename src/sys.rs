@@ -141,7 +141,6 @@ impl ClintTimer {
 impl Timer for ClintTimer {
     fn set_timer(&mut self, time_value: u64) {
         let this_mhartid = riscv::register::mhartid::read();
-        println!("set timer!");
         CLINT.set_timer(this_mhartid, time_value);
         unsafe {
             use riscv::register::{mie, mip};

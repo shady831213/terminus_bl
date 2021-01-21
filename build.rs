@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let payload_path = option_env!("PAYLOAD_PATH");
+    let payload_path = option_env!("PAYLOAD_BIN_PATH");
     println!("{:?}", payload_path);
     //Fix me: Need strip payload
     let payload_head = ".section .payload, \"ax\"

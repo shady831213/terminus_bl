@@ -1,6 +1,6 @@
     .section .text
     .global _start_trap
-    .p2align 2
+    .align 4
 
 _start_trap:
     csrrw   sp, mscratch, sp

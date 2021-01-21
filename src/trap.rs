@@ -6,12 +6,16 @@ global_asm!(include_str!("rv64.S"));
 
 global_asm!(include_str!("trap.S"));
 pub fn init_trap() {
-    use riscv::register::mtvec::{self, TrapMode};
+    use riscv::register::{
+        mtvec::{self, TrapMode},
+        stvec,
+    };
     extern "C" {
         fn _start_trap();
     }
     unsafe {
         mtvec::write(_start_trap as usize, TrapMode::Direct);
+        stvec::write(_start_trap as usize, TrapMode::Direct);
     }
 }
 
@@ -57,7 +61,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
     use crate::sys::ClintTimer;
     use riscv::register::{
         mcause::{self, Exception, Interrupt, Trap},
-        mepc, mie, mip, mtval,
+        mepc, mie, mip, mscratch, mstatus, mtval,
     };
     let cause = mcause::read().cause();
     match cause {
@@ -84,37 +88,6 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
             }
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            #[inline]
-            unsafe fn get_vaddr_u32(vaddr: usize) -> u32 {
-                let mut ans: u32;
-                #[cfg(target_pointer_width = "64")]
-                llvm_asm!("
-                    li      t0, (1 << 17)
-                    mv      t1, $1
-                    csrrs   t0, mstatus, t0
-                    lwu     t1, 0(t1)
-                    csrw    mstatus, t0
-                    mv      $0, t1
-                "
-                    :"=r"(ans) 
-                    :"r"(vaddr)
-                    :"t0", "t1");
-
-                #[cfg(target_pointer_width = "32")]
-                llvm_asm!("
-                    li      t0, (1 << 17)
-                    mv      t1, $1
-                    csrrs   t0, mstatus, t0
-                    lw     t1, 0(t1)
-                    csrw    mstatus, t0
-                    mv      $0, t1
-                "
-                    :"=r"(ans) 
-                    :"r"(vaddr)
-                    :"t0", "t1");
-
-                ans
-            }
             let vaddr = mepc::read();
             let ins = unsafe { get_vaddr_u32(vaddr) };
             if ins & 0xFFFFF07F == 0xC0102073 {
@@ -149,7 +122,8 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
         }
         #[cfg(target_pointer_width = "64")]
         cause => panic!(
-            "Unhandled exception! mcause: {:?}, mepc: {:016x?}, mtval: {:016x?}, trap frame: {:p}, {:x?}",
+            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:016x?}, mtval: {:016x?}, trap frame: {:p}, {:x?}",
+            mstatus::read(),
             cause,
             mepc::read(),
             mtval::read(),
@@ -158,11 +132,72 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
         ),
         #[cfg(target_pointer_width = "32")]
         cause => panic!(
-            "Unhandled exception! mcause: {:?}, mepc: {:08x?}, mtval: {:08x?}, trap frame: {:x?}",
+            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:08x?}, mtval: {:08x?}, trap frame: {:x?}",
+            mstatus::read(),
             cause,
             mepc::read(),
             mtval::read(),
             trap_frame
         ),
     }
+}
+
+#[cfg(target_pointer_width = "64")]
+macro_rules! LWU_STR {
+    () => {
+        "lwu"
+    };
+}
+
+#[cfg(target_pointer_width = "32")]
+macro_rules! LWU_STR {
+    () => {
+        "lw"
+    };
+}
+
+#[cfg(target_pointer_width = "64")]
+macro_rules! XLEN_MINUS_16 {
+    () => {
+        "48"
+    };
+}
+
+#[cfg(target_pointer_width = "32")]
+macro_rules! XLEN_MINUS_16 {
+    () => {
+        "16"
+    };
+}
+
+#[inline]
+unsafe fn get_vaddr_u32(vaddr: usize) -> u32 {
+    let mut ans: u32;
+    llvm_asm!(concat!("
+                    li      t0, (1 << 17)
+                    li      t3, 3
+                    and     t2, $1, 2
+                    csrrs   t0, mstatus, t0
+                    bnez    t2, 1f
+                    ", LWU_STR!(), " t1, 0($1)
+                    and t2, t1, 3
+                    beq t2, t3, 2f
+                    sll t1, t1, ",XLEN_MINUS_16!(),"
+                    srl t1, t1, ",XLEN_MINUS_16!(),"
+                    j 2f
+                    1:
+                    lhu t1, 0($1)
+                    and t2, t1, 3
+                    bne t2, t3, 2f
+                    lhu t2, 2($1)
+                    sll t2, t2, 16
+                    add t1, t1, t2
+                    2:
+                    csrw    mstatus, t0
+                    mv      $0, t1
+                ")
+                    :"=r"(ans) 
+                    :"r"(vaddr)
+                    :"t0", "t1", "t2", "t3");
+    ans
 }
