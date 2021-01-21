@@ -57,8 +57,7 @@ struct TrapFrame {
 impl TrapFrame {
     fn update(&mut self, dst: u8, value: usize) {
         match dst {
-            8 => self.s0 = value,
-            9 => self.s1 = value,
+            8 | 9 => {}
             10 => self.a0 = value,
             11 => self.a1 = value,
             12 => self.a2 = value,
@@ -116,10 +115,6 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
                 mip::set_stimer();
             }
         }
-        // Trap::Exception(Exception::LoadMisaligned) => {
-        //     let vaddr = mepc::read();
-        //     let ins = unsafe { crate::sys::get_insn(vaddr) };
-        // }
         Trap::Exception(Exception::IllegalInstruction) => {
             let vaddr = mepc::read();
             let ins = unsafe { crate::sys::get_insn(vaddr) };
