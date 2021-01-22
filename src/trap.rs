@@ -57,7 +57,8 @@ struct TrapFrame {
 impl TrapFrame {
     fn update(&mut self, dst: u8, value: usize) {
         match dst {
-            8 | 9 => {}
+            8 => self.s0 = value,
+            9 => self.s1 = value,
             10 => self.a0 = value,
             11 => self.a1 = value,
             12 => self.a2 = value,
@@ -83,7 +84,7 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
     use crate::sys::ClintTimer;
     use riscv::register::{
         mcause::{self, Exception, Interrupt, Trap},
-        mepc, mie, mip, mstatus, mtval,
+        mepc, mie, mip, mstatus, mtval, scounteren,
     };
     let cause = mcause::read().cause();
     match cause {
@@ -121,8 +122,15 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
             if ins & 0xFFFFF07F == 0xC0102073 {
                 // rdtime
                 let rd = ((ins >> 7) & 0b1_1111) as u8;
-                let time_usize = ClintTimer.get_time() as usize;
-                trap_frame.update(rd, time_usize);
+                let counteren = if mstatus::read().mpp() == mstatus::MPP::User {
+                    scounteren::read().tm()
+                } else {
+                    true
+                };
+                if counteren {
+                    let time_usize = ClintTimer.get_time() as usize;
+                    trap_frame.update(rd, time_usize);
+                }
                 mepc::write(mepc::read().wrapping_add(4));
             } else {
                 #[cfg(target_pointer_width = "64")]
@@ -133,20 +141,22 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
         }
         #[cfg(target_pointer_width = "64")]
         cause => panic!(
-            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:016x?}, mtval: {:016x?}, trap frame: {:p}, {:x?}",
+            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:016x?}, insn:{:x}, mtval: {:016x?}, trap frame: {:p}, {:x?}",
             mstatus::read(),
             cause,
             mepc::read(),
+            unsafe { crate::sys::get_insn(mepc::read()) },
             mtval::read(),
             &trap_frame as *const _,
             trap_frame
         ),
         #[cfg(target_pointer_width = "32")]
         cause => panic!(
-            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:08x?}, mtval: {:08x?}, trap frame: {:x?}",
+            "Unhandled exception! mstatus: {:x?}, mcause: {:?}, mepc: {:08x?}, insn:{:x},  mtval: {:08x?}, trap frame: {:x?}",
             mstatus::read(),
             cause,
             mepc::read(),
+            unsafe { crate::sys::get_insn(mepc::read()) },
             mtval::read(),
             trap_frame
         ),

@@ -25,8 +25,8 @@ _start_trap:
     STORE   a5, 13
     STORE   a6, 14
     STORE   a7, 15
-    STORE   s0, 17
-    STORE   s1, 18
+    STORE   s0, 16
+    STORE   s1, 17
     mv      a0, sp
     call    _start_trap_rust
     LOAD    ra, 0
@@ -45,8 +45,8 @@ _start_trap:
     LOAD    a5, 13
     LOAD    a6, 14
     LOAD    a7, 15
-    LOAD    s0, 17
-    LOAD    s1, 18
+    LOAD    s0, 16
+    LOAD    s1, 17
     addi    sp, sp, 18 * REGBYTES
     csrrw   sp, mscratch, sp
     mret
