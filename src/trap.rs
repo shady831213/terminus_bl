@@ -27,7 +27,8 @@ pub fn delege_trap() {
         medeleg::set_instruction_page_fault();
         medeleg::set_load_page_fault();
         medeleg::set_store_page_fault();
-        mie::set_mext();
+        //external interrupt go S priv directly
+        // mie::set_mext();
         mie::set_msoft();
     }
 }
@@ -102,12 +103,6 @@ extern "C" fn start_trap_rust(trap_frame: &mut TrapFrame) {
             unsafe {
                 mie::clear_msoft();
                 mip::set_ssoft();
-            }
-        }
-        Trap::Interrupt(Interrupt::MachineExternal) => {
-            unsafe {
-                mie::clear_mext();
-                mip::set_sext();
             }
         }
         Trap::Interrupt(Interrupt::MachineTimer) => {
