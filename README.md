@@ -5,7 +5,7 @@ Terminus Boot Loader
 [terminus](https://github.com/shady831213/terminus)
 
 ## main dependencies:
-[rustbi](https://github.com/luojia65/rustsbi)
+[russbi](https://github.com/luojia65/rustsbi)
 
 ## usage
 ```
