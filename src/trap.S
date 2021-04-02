@@ -49,4 +49,8 @@ _start_trap:
     LOAD    s1, 17
     addi    sp, sp, 18 * REGBYTES
     csrrw   sp, mscratch, sp
+    bnez    sp, 1f
+    /* from M level, load sp */
+    csrrw   sp, mscratch, zero
+1:
     mret
